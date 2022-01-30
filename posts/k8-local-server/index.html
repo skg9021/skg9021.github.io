@@ -1,0 +1,209 @@
+<!doctype html><html lang=en-us>
+<head>
+<meta charset=utf-8>
+<meta http-equiv=x-ua-compatible content="IE=edge,chrome=1">
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=format-detection content="telephone=no">
+<title>K8 Local Server | Saket Gupta</title>
+<link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png>
+<link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png>
+<link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png>
+<link rel=manifest href=/manifest.json>
+<link rel=mask-icon href=/safari-pinned-tab.svg color=#ff3db4>
+<meta name=theme-color content="#ffffff">
+<link rel=stylesheet href=https://skg9021.github.io/css/main.min.975b1911c008aee6ab5fb42e51274b8268ebcb65dc15bd4a5f69b9eedb485c3e.css>
+</head>
+<body>
+<nav>
+<header>
+<div class=site-title>
+<a href=/>Saket Gupta</a>
+</div>
+</header>
+<div class=nav-menu>
+<a class="color-link nav-link" href=/about/>About</a>
+<a class="color-link nav-link" href=/tags/>Tags</a>
+<a class="color-link nav-link" href=/archives/>Archives</a>
+<a class="color-link nav-link" href=https://skg9021.github.io/index.xml target=_blank rel=noopener type=application/rss+xml>RSS</a>
+</div>
+<footer class=footer>
+<div class=social-icons>
+</div>
+<p><a href=https://github.com/kimcc/hugo-theme-noteworthy target=_blank rel=noopener>Noteworthy theme</a></p>
+<p><a href=https://gohugo.io target=_blank rel=noopener>Built with Hugo</a></p>
+<script src=https://skg9021.github.io/js/main.min.c1aee25a817e9beb1f9c4afd9d62311227a7f5e46720e404dc1dda97281f47f2.js integrity="sha256-wa7iWoF+m+sfnEr9nWIxEien9eRnIOQE3B3alygfR/I=" crossorigin=anonymous></script>
+</footer>
+</nav>
+<div id=content class=content-container>
+<h1 class=post-title>K8 Local Server</h1>
+<time>January 29, 2022</time>
+<div>
+<p>
+<h1 id=access-k8-cluster-from-local-machine-via-jump-server>Access K8 cluster from Local Machine via Jump Server</h1>
+<p>There are times when you want to access K8 cluster hosted on remote machines on your local system. If this K8 cluster is using AWS EKS, Azure AKS, or Google GKE it is common practice to have a bastion host which is used to access this cluster.</p>
+<p>To solve this problem, I am accessing these cluster via a SOCKS5 proxy. The problem with SOCKS5 proxy is that <em>HTTP Rest</em> based (get, describe, etc.) will work out of the box but commands using <em>SPDY2</em> (exec, attach, port-forward) won&rsquo;t work.</p>
+<p>There is already <a href=https://github.com/kubernetes/kubernetes/pull/105632>PR</a> which will migrate these commands from SPDY2 to websockets. Till this gets released we will explore methods using kubectl with or without this functionality.</p>
+<h2 id=using-socks5-proxy-and-old-kubectl>Using Socks5 Proxy and old kubectl</h2>
+<p>This method requires Polipo as http proxy to wrap SOCKS5.</p>
+<p>In this menthod polipo converts SOCKS5 proxy to HTTP proxy</p>
+<h3 id=requirements>Requirements</h3>
+<ul>
+<li>Polipo</li>
+<li>kubectl</li>
+</ul>
+<p>Polipo cannot be installed on Mac using brew as it has been deprecated.</p>
+<p>To install follow the following steps:</p>
+<ol>
+<li>Edit Polipo&rsquo;s brew config
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>brew edit polipo
+</code></pre></div></li>
+<li>Polipo.rb file will open in your default editor. Remove the line starting with <strong>disable!</strong> and save.</li>
+<li>Install polipo using brew
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>brew install polipo
+</code></pre></div></li>
+<li>Revert changes done in Step 2 and save.</li>
+</ol>
+<h3 id=steps-to-follow>Steps to Follow</h3>
+<ul>
+<li>
+<p>Create a SOCKS5 tunnel to jump server</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>ssh -D 8013 -qCN [jump_server] 
+<span style=color:#960050;background-color:#1e0010>
+</span></code></pre></div></li>
+<li>
+<p>Create HTTP proxy using polipo</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>polipo \
+    socksProxyType=socks5 \
+    socksParentProxy=127.0.0.1:8013  \
+    proxyPort=7770 \
+    logFile=/dev/stdout \
+    logLevel=0xFF
+</code></pre></div></li>
+<li>
+<p>Add server config in .kube/config. For the specific server add proxy port as below:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1</span>
+- <span style=color:#f92672>cluster</span>:
+    <span style=color:#f92672>certificate-authority-data</span>: [<span style=color:#ae81ff>certificate]</span>
+    <span style=color:#f92672>server</span>: <span style=color:#ae81ff>https://xyz.ab7.us-east-1.eks.amazonaws.com</span>
+    <span style=color:#f92672>proxy-url</span>: <span style=color:#ae81ff>socks5://localhost:8013</span>
+<span style=color:#f92672>name</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+<span style=color:#f92672>contexts</span>:
+- <span style=color:#f92672>context</span>:
+    <span style=color:#f92672>cluster</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+    <span style=color:#f92672>user</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+<span style=color:#f92672>name</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-context</span>
+<span style=color:#f92672>current-context</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-context</span>
+<span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Config</span>
+<span style=color:#f92672>preferences</span>: {}
+<span style=color:#f92672>users</span>:
+- <span style=color:#f92672>name</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+<span style=color:#f92672>user</span>:
+    <span style=color:#f92672>exec</span>:
+    <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>client.authentication.k8s.io/v1alpha1</span>
+    <span style=color:#f92672>provideClusterInfo</span>: <span style=color:#66d9ef>true</span>
+    <span style=color:#f92672>args</span>:
+    - --<span style=color:#ae81ff>region</span>
+    - <span style=color:#ae81ff>us-east-1</span>
+    - <span style=color:#ae81ff>eks</span>
+    - <span style=color:#ae81ff>get-token</span>
+    - --<span style=color:#ae81ff>cluster-name</span>
+    - <span style=color:#ae81ff>test-context</span>
+    <span style=color:#f92672>command</span>: <span style=color:#e6db74>&#34;aws&#34;</span>
+    <span style=color:#f92672>env</span>: <span style=color:#66d9ef>null</span>
+</code></pre></div></li>
+<li>
+<p><strong>(optional)</strong> If you are using AWS EKS and do not have your IAM role added to cluster you can use your jump server&rsquo;s credential by using <em>aws-cli</em> over ssh.
+For this follow steps below:</p>
+<ul>
+<li>Create a file in your path
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>touch /usr/local/bin/awsn
+chmod +x /usr/local/bin/awsn
+</code></pre></div></li>
+<li>Add following contents
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=color:#75715e>#!/bin/sh
+</span><span style=color:#75715e></span>ssh <span style=color:#f92672>[</span>jump_server<span style=color:#f92672>]</span> aws <span style=color:#e6db74>&#34;</span>$@<span style=color:#e6db74>&#34;</span>
+</code></pre></div></li>
+<li>Add following config file
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1</span>
+- <span style=color:#f92672>cluster</span>:
+    <span style=color:#f92672>certificate-authority-data</span>: [<span style=color:#ae81ff>certificate]</span>
+    <span style=color:#f92672>server</span>: <span style=color:#ae81ff>https://xyz.ab7.us-east-1.eks.amazonaws.com</span>
+    <span style=color:#f92672>proxy-url</span>: <span style=color:#ae81ff>socks5://localhost:8013</span>
+<span style=color:#f92672>name</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+<span style=color:#f92672>contexts</span>:
+- <span style=color:#f92672>context</span>:
+    <span style=color:#f92672>cluster</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+    <span style=color:#f92672>user</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+<span style=color:#f92672>name</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-context</span>
+<span style=color:#f92672>current-context</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-context</span>
+<span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Config</span>
+<span style=color:#f92672>preferences</span>: {}
+<span style=color:#f92672>users</span>:
+- <span style=color:#f92672>name</span>: <span style=color:#ae81ff>arn:aws:eks:us-east-1:1234:cluster/test-cluster</span>
+<span style=color:#f92672>user</span>:
+    <span style=color:#f92672>exec</span>:
+    <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>client.authentication.k8s.io/v1alpha1</span>
+    <span style=color:#f92672>provideClusterInfo</span>: <span style=color:#66d9ef>true</span>
+    <span style=color:#f92672>args</span>:
+    - --<span style=color:#ae81ff>region</span>
+    - <span style=color:#ae81ff>us-east-1</span>
+    - <span style=color:#ae81ff>eks</span>
+    - <span style=color:#ae81ff>get-token</span>
+    - --<span style=color:#ae81ff>cluster-name</span>
+    - <span style=color:#ae81ff>test-context</span>
+    <span style=color:#f92672>command</span>: <span style=color:#e6db74>&#34;awsn&#34;</span>
+    <span style=color:#f92672>env</span>: <span style=color:#66d9ef>null</span>
+</code></pre></div></li>
+</ul>
+</li>
+<li>
+<p>Use kubectl commands as follows. Here <strong>7770</strong> is the proxy port setup in polipo.</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>env HTTPS_PROXY=http://127.0.0.1:7770 kubectl exec [pod_name] -n [namespace_name] -- [command]
+</code></pre></div></li>
+</ul>
+<h2 id=using-socks5-proxy-and-new-kubectl>Using SOCKS5 proxy and new kubectl</h2>
+<h3 id=requirements-1>Requirements</h3>
+<ul>
+<li>kubectl (with this <a href=https://github.com/kubernetes/kubernetes/pull/105632>PR</a>)</li>
+<li>go compiler (if kubectl needs to be build)</li>
+</ul>
+<p>If latest kubectl is not available use following method:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell>git clone https://github.com/kubernetes/kubernetes.git
+<span style=color:#75715e># Build kubectl</span>
+go build -o ~/bin/kubectl ./cmd/kubectl
+<span style=color:#75715e># Create symlink in your path</span>
+sudo ln -s ~/bin/kubectl /usr/local/bin/kubectl
+</code></pre></div><h3 id=steps-to-follow-1>Steps to Follow</h3>
+<ul>
+<li>Create SOCKS5 tunnel
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>ssh -D 8013 -qCN [jump_server]
+</code></pre></div></li>
+<li>Run kubectl commands as follows
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-console data-lang=console>kubectl exec [pod_name] -n [namespace_name] -- [command]
+</code></pre></div></li>
+</ul>
+<h2 id=conclusion>Conclusion</h2>
+<p>Here we talked about how to access remote cluster from jump servers. In future article, we will explore on how to test your source code inside K8 cluster.
+Till that time Happy Coding!!</p>
+</p>
+</div>
+<div class=page-footer>
+<hr class=footer-divider>
+<a class=tag href=/tags/kubernetes>#Kubernetes</a>
+</div>
+<link rel=stylesheet type=text/css href=/css/katex.min.css crossorigin=anonymous>
+<script type=text/javascript src=/js/katex.min.js crossorigin=anonymous></script>
+<script type=text/javascript src=/js/auto-render.min.js onload=renderMathInElement(document.body) crossorigin=anonymous></script>
+</div>
+<footer class=footer-mobile>
+<div class=social-icons>
+</div>
+<div class=footer-mobile-links>
+<p><a href=https://github.com/kimcc/hugo-theme-noteworthy target=_blank rel=noopener>Noteworthy theme</a></p>
+<span class=divider-bar>|</span>
+<p><a href=https://gohugo.io target=_blank rel=noopener>Built with Hugo</a></p>
+</div>
+<script src=https://skg9021.github.io/js/main.min.c1aee25a817e9beb1f9c4afd9d62311227a7f5e46720e404dc1dda97281f47f2.js integrity="sha256-wa7iWoF+m+sfnEr9nWIxEien9eRnIOQE3B3alygfR/I=" crossorigin=anonymous></script>
+</footer>
+</body>
+</html>
