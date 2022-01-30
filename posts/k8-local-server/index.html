@@ -4,7 +4,7 @@
 <meta http-equiv=x-ua-compatible content="IE=edge,chrome=1">
 <meta name=viewport content="width=device-width,initial-scale=1">
 <meta name=format-detection content="telephone=no">
-<title>K8 Local Server | Saket Gupta</title>
+<title>Access K8 cluster from Local Machine via Jump Server | Saket Gupta</title>
 <link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png>
 <link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png>
 <link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png>
@@ -35,11 +35,10 @@
 </footer>
 </nav>
 <div id=content class=content-container>
-<h1 class=post-title>K8 Local Server</h1>
+<h1 class=post-title>Access K8 cluster from Local Machine via Jump Server</h1>
 <time>January 29, 2022</time>
 <div>
 <p>
-<h1 id=access-k8-cluster-from-local-machine-via-jump-server>Access K8 cluster from Local Machine via Jump Server</h1>
 <p>There are times when you want to access K8 cluster hosted on remote machines on your local system. If this K8 cluster is using AWS EKS, Azure AKS, or Google GKE it is common practice to have a bastion host which is used to access this cluster.</p>
 <p>To solve this problem, I am accessing these cluster via a SOCKS5 proxy. The problem with SOCKS5 proxy is that <em>HTTP Rest</em> based (get, describe, etc.) will work out of the box but commands using <em>SPDY2</em> (exec, attach, port-forward) won&rsquo;t work.</p>
 <p>There is already <a href=https://github.com/kubernetes/kubernetes/pull/105632>PR</a> which will migrate these commands from SPDY2 to websockets. Till this gets released we will explore methods using kubectl with or without this functionality.</p>
