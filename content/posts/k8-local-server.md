@@ -1,6 +1,6 @@
 ---
 author: "Saket Gupta"
-title: "K8 Local Server"
+title: "Access K8 cluster from Local Machine via Jump Server"
 date: 2022-01-29T23:25:56+05:30
 draft: false
 description: ""
@@ -9,7 +9,6 @@ tags: [
 ]
 ---
 
-# Access K8 cluster from Local Machine via Jump Server
 There are times when you want to access K8 cluster hosted on remote machines on your local system. If this K8 cluster is using AWS EKS, Azure AKS, or Google GKE it is common practice to have a bastion host which is used to access this cluster.
 
 To solve this problem, I am accessing these cluster via a SOCKS5 proxy. The problem with SOCKS5 proxy is that *HTTP Rest* based (get, describe, etc.) will work out of the box but commands using *SPDY2* (exec, attach, port-forward) won't work. 
