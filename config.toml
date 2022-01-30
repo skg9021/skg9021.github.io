@@ -4,7 +4,7 @@ title = 'Saket Gupta'
 theme= "noteworthy"
 enableRobotsTXT = true
 paginate = 4 # Set the number of posts to show before overflowing to the next page.
-summaryLength = 10 # Configure how long the post summary should be on the homepage.
+summaryLength = 20 # Configure how long the post summary should be on the homepage.
 
 # Add your Google Analytics identifier: UA-XXXXXXXX-X
 googleAnalytics = ""
@@ -25,9 +25,16 @@ disqusShortname = "guptasaket"
 [params]
     math = true
     # Blog description at the top of the homepage. Supports markdown.
-    description = "Profile of Saket Gupta"
+    description = "Rumblings of the Void"
+    profilePicture = "images/profile.jpeg"
 
-    showReadMore = false
+
+    showReadMore = true
+
+    email = "saketgupta@outlook.com"
+    linkedin = "https://www.linkedin.com/in/saketguptanitk/"
+    github = "https://github.com/skg9021"
+
 
 # Menu links along the sidebar navigation.
 [[menu.main]]
@@ -50,7 +57,7 @@ disqusShortname = "guptasaket"
 
 [privacy]
   [privacy.disqus]
-    disable = true
+    disable = false
   [privacy.googleAnalytics]
     anonymizeIP = true
     disable = false
